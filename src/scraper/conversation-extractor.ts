@@ -176,7 +176,13 @@ export class ConversationExtractor {
         if (resolved) return
 
         const url = response.url()
-        if (!url.includes('/rest/thread/') || url.includes('list_ask_threads')) return
+        if (
+          !url.includes('/rest/thread/') ||
+          url.includes('list_ask_threads') ||
+          url.includes('list_recent') ||
+          url.includes('list_pinned')
+        )
+          return
 
         if (page.isClosed()) return
 
@@ -185,6 +191,7 @@ export class ConversationExtractor {
           if (resolved) return
 
           const parseResult = ConversationExtractor.ApiResponseSchema.safeParse(json)
+        
           if (!parseResult.success) {
             ApiDiagnosticsWriter.writeFailure({
               url: response.url(),
