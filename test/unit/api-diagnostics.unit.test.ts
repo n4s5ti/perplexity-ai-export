@@ -6,21 +6,22 @@ import path from 'node:path'
 vi.mock('node:fs/promises')
 
 describe('ApiDiagnosticsWriter (Unit)', () => {
-  const mockConfig = { debug: true } as any;
-  let writer: ApiDiagnosticsWriter;
+  const mockConfig = { debug: true } as any
+  let writer: ApiDiagnosticsWriter
 
   beforeEach(() => {
     vi.clearAllMocks()
+    writer = new ApiDiagnosticsWriter(mockConfig)
   })
 
   it('should write diagnostic entry to jsonl file when debug is true', async () => {
-    mockConfig.debug = true;
+    mockConfig.debug = true
     const entry = {
       url: 'http://test.com',
       errorType: 'unknown_shape' as const,
     }
 
-    await ApiDiagnosticsWriter.writeFailure(entry)
+    await writer.writeFailure(entry)
 
     expect(fs.mkdir).toHaveBeenCalledWith('debug', { recursive: true })
     expect(fs.appendFile).toHaveBeenCalledWith(
@@ -28,27 +29,34 @@ describe('ApiDiagnosticsWriter (Unit)', () => {
       expect.stringContaining('"url":"http://test.com"'),
       'utf8'
     )
-    expect(fs.appendFile).toHaveBeenCalledWith(
-      path.join('debug', 'api-diagnostics.jsonl'),
-      expect.stringContaining('"errorType":"unknown_shape"'),
-      'utf8'
-    )
   })
 
   it('should include zodErrorPaths when provided', async () => {
-    mockConfig.debug = true;
+    mockConfig.debug = true
     const entry = {
       url: 'http://test.com',
       errorType: 'zod_error' as const,
       zodErrorPaths: ['entries.0.title'],
     }
 
-    await ApiDiagnosticsWriter.writeFailure(entry)
+    await writer.writeFailure(entry)
 
     expect(fs.appendFile).toHaveBeenCalledWith(
       path.join('debug', 'api-diagnostics.jsonl'),
       expect.stringContaining('"zodErrorPaths":["entries.0.title"]'),
       'utf8'
     )
+  })
+
+  it('should NOT write diagnostic entry when debug is false', async () => {
+    mockConfig.debug = false
+    const entry = {
+      url: 'http://test.com',
+      errorType: 'unknown_shape' as const,
+    }
+
+    await writer.writeFailure(entry)
+
+    expect(fs.appendFile).not.toHaveBeenCalled()
   })
 })

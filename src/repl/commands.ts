@@ -1,3 +1,4 @@
+import { errorBus } from '../utils/error-bus.js'
 import { input, select, confirm } from '@inquirer/prompts'
 import { rmSync } from 'node:fs'
 import { sep } from 'node:path'
@@ -60,7 +61,7 @@ export class CommandHandler {
     try {
       await this.executeFullScrapingFlow()
     } catch (_error) {
-      logger.error('Scraper failed:', _error instanceof Error ? _error : String(_error))
+      errorBus.emitError('Scraper failed', _error)
       logger.info(
         '\nNote: Check "debug/api-diagnostics.jsonl" for details if the failure is related to API response changes.'
       )
@@ -99,7 +100,7 @@ export class CommandHandler {
             searchMode = 'rg'
           } else {
             const errorMessage = _error instanceof Error ? _error.message : String(_error)
-            logger.error(errorMessage)
+            errorBus.emitError(errorMessage)
             logger.info('Start Ollama with the embedding model, then run "vectorize".')
             return
           }
@@ -115,7 +116,7 @@ export class CommandHandler {
       )
     } catch (_error) {
       if (_error instanceof Error) {
-        logger.error(_error.message)
+        errorBus.emitError(_error.message, _error)
       }
     }
   }
@@ -246,7 +247,8 @@ export class CommandHandler {
   private async promptForSearchQuery(): Promise<string> {
     return input({
       message: 'Search query:',
-      validate: (inputValue) => (inputValue.trim().length === 0 ? 'Please enter a query.' : true),
+      validate: (inputValue: string) =>
+        inputValue.trim().length === 0 ? 'Please enter a query.' : true,
     })
   }
 
@@ -265,7 +267,7 @@ export class CommandHandler {
 
   private async handleVectorSearchValidationRetry(error: unknown): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    logger.error(errorMessage)
+    errorBus.emitError(errorMessage)
 
     const shouldRetry = await confirm({
       message:
@@ -281,7 +283,7 @@ export class CommandHandler {
       await this.conversationSearchOrchestrator.validateVectorSearch()
     } catch (err) {
       const nestedErrorMessage = err instanceof Error ? err.message : String(err)
-      logger.error(nestedErrorMessage)
+      errorBus.emitError(nestedErrorMessage)
       return
     }
 
