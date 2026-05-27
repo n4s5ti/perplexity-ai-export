@@ -35,10 +35,24 @@ export function showHelp(): void {
     '  • RAG: Ask history with Ollama. Combines vector retrieval with AI generation for comprehensive answers.'
   )
   logger.info(
+    '    The pipeline now includes HyDE (generates a hypothetical answer passage before searching)'
+  )
+  logger.info(
+    '    and cross-encoder reranking (rescores top candidates for higher precision) automatically.'
+  )
+  logger.info(
     '  • Auto Search: Intelligently switches between semantic and exact search based on query length.'
   )
   logger.info(
     '  • Semantic: Best for finding conceptually similar topics even without exact keyword matches.'
   )
   logger.info('  • Exact: Ideal for finding specific phrases or technical terms.\n')
+
+  logger.info(chalk.bold('🏋️  Benchmark:\n'))
+  logger.info(
+    '  Run npm run benchmark to measure RAG pipeline latency across a set of test queries.'
+  )
+  logger.info(
+    '  Requires a built vector index. Edit BENCHMARK_QUERIES in src/benchmark.ts to tailor to your history.\n'
+  )
 }

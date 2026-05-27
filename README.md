@@ -29,6 +29,7 @@
   * [Project Structure](#project-structure)
 - [Diagnostics](#diagnostics)
 - [Testing](#testing)
+- [Benchmarking](#benchmarking)
 
 <!-- tocstop -->
 
@@ -43,6 +44,8 @@ This tool is designed to externalize your Perplexity.ai conversation history int
 - **Parallelized Extraction**: Leverages Playwright to extract multiple conversation threads simultaneously for high-velocity data retrieval.
 - **Architectural Resilience**: Automatically restores browser contexts and retries operations, ensuring continuity amidst environmental instability.
 - **Advanced RAG (Retrieval-Augmented Generation)**: Engage in a cognitive dialogue with your history. The system employs intent analysis to synthesize broad summaries or pinpoint specific technical insights.
+- **HyDE (Hypothetical Document Embeddings)**: Before searching, the planner generates a hypothetical answer passage and uses it as an additional search vector, improving recall when your question wording differs from how you originally wrote things.
+- **Cross-Encoder Reranking**: After initial retrieval, a local ONNX cross-encoder (`ms-marco-MiniLM-L-6-v2`) rescores the top candidates by jointly reasoning over query and passage, surfacing the most relevant results before synthesis.
 - **Semantic Vector Search**: Move beyond keyword matching. Locate information based on conceptual depth and semantic relevance.
 - **Persistent State Tracking**: Frequent checkpoints allow the system to resume progress after any interruption.
 - **Interactive Synthesis (REPL)**: A streamlined command-line interface for human-system synergy.
@@ -137,6 +140,12 @@ The RAG modality is engineered for various levels of cognitive inquiry:
 - **Granular Retrieval**: "Locate the specific TypeScript pattern I used for the worker pool."
 - **Cross-Thread Integration**: "How has my conceptual understanding of React hooks shifted?"
 
+The pipeline runs three enhancement stages automatically:
+
+1. **HyDE** — the planner writes a hypothetical answer passage and uses it as an extra search vector alongside your query variations, improving recall when question wording diverges from stored content.
+2. **Expanded pool** — precise mode retrieves 35 candidates (up from 20), exhaustive mode retrieves 60.
+3. **Cross-encoder reranking** — a local ONNX model (`Xenova/ms-marco-MiniLM-L-6-v2`) jointly scores each (query, passage) pair and reorders before synthesis. Activates automatically after `npm install`. First run downloads ~85MB model, cached thereafter.
+
 ## Architecture & Deep Dive
 
 For a detailed look at our RAG implementation, hybrid search strategy, and theoretical foundations, please refer to:
@@ -166,3 +175,13 @@ npm run test:unit
 # Execute integration-level verifications
 npm run test:integration
 ```
+
+## Benchmarking
+
+Measure RAG pipeline latency and validate the full retrieval stack against your actual export data.
+
+```bash
+npm run benchmark
+```
+
+Requires a built vector index and a running Ollama instance. The benchmark runs a set of predefined queries end-to-end through the full pipeline (HyDE → hybrid search → cross-encoder reranking → MapReduce → synthesis) and reports per-query latency and success rate. Edit `BENCHMARK_QUERIES` in `src/benchmark.ts` to tailor queries to your history.
