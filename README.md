@@ -185,3 +185,5 @@ npm run benchmark
 ```
 
 Requires a built vector index and a running Ollama instance. The benchmark runs a set of predefined queries end-to-end through the full pipeline (HyDE → hybrid search → cross-encoder reranking → MapReduce → synthesis) and reports per-query latency and success rate. Edit `BENCHMARK_QUERIES` in `src/benchmark.ts` to tailor queries to your history.
+
+👉 **[BENCHMARKS.md](./BENCHMARKS.md)** — full details on each benchmark, why the metrics were chosen, how to interpret results, and how to write effective custom queries.
