@@ -104,7 +104,8 @@ async function detectApiVersion(page: Page): Promise<string> {
       { timeout: 15_000 }
     )
     const version = extractVersionFromUrl(response.url()) ?? '2.18'
-    logger.debug(`Detected API version: ${version} (from ${new URL(response.url()).pathname})`)
+    const pathname = new URL(response.url()).pathname
+    logger.debug(`Detected API version: ${version} (from ${pathname})`)
     return version
   } catch {
     logger.debug('Version detection timeout — using fallback 2.18')
@@ -184,13 +185,55 @@ async function fetchThreadBatch(
   }
 
   const threads = parsed as RawThread[]
-  const total = threads[0]?.total_threads ?? threads.length
+  const total = threads[0]?.total_threads ?? 0
 
   return {
     threads,
-    hasMore: offset + threads.length < total,
+    // Stop only when the API returns a partial page — avoids relying on
+    // total_threads which may be server-capped (observed cap: 100).
+    hasMore: threads.length === BATCH_SIZE,
     total,
   }
+}
+
+async function fetchPinnedThreads(page: Page, version: string): Promise<RawThread[]> {
+  const url = `${BASE_URL}/rest/thread/list_pinned_ask_threads?version=${version}&source=default`
+
+  const raw = await page.evaluate(
+    async ({ url }: { url: string }) => {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({}),
+        credentials: 'include',
+      })
+      const text = await res.text()
+      return { status: res.status, body: text }
+    },
+    { url }
+  )
+
+  logger.debug(`list_pinned_ask_threads: status=${raw.status}`)
+
+  if (raw.status !== 200) {
+    logger.debug(`list_pinned_ask_threads returned HTTP ${raw.status} — skipping pinned`)
+    return []
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw.body)
+  } catch {
+    logger.debug('list_pinned_ask_threads: invalid JSON — skipping pinned')
+    return []
+  }
+
+  if (!Array.isArray(parsed)) {
+    logger.debug(`list_pinned_ask_threads: expected array, got ${typeof parsed} — skipping pinned`)
+    return []
+  }
+
+  return parsed as RawThread[]
 }
 
 async function fetchFirstBatch(page: Page, version: string): Promise<ThreadBatchResponse> {
@@ -208,15 +251,14 @@ async function fetchFirstBatch(page: Page, version: string): Promise<ThreadBatch
     }
   }
 
-  logger.info('No threads found in library')
-  return { threads: [], hasMore: false, total: 0 }
+  throw new Error(
+    `list_ask_threads returned empty after ${MAX_RETRIES} attempts — API may be unavailable or the library is empty`
+  )
 }
 
 // ─── Main Discovery ───────────────────────────────────────────────────────────
 
 export class LibraryDiscovery {
-  constructor() {}
-
   async discoverAllConversationsFromLibrary(page: Page): Promise<ConversationMeta[]> {
     logger.info('Discovering threads via REST API...')
 
@@ -231,17 +273,30 @@ export class LibraryDiscovery {
 
     // Resolve detected version (fallback to 2.18 on timeout)
     const version = await versionPromise
-    logger.info(`Detected API version: ${version} (from /rest/thread/list_ask_threads)`)
+    logger.info(`Detected API version: ${version}`)
+
+    // Fetch pinned threads first (separate endpoint, no pagination)
+    const pinnedThreads = await fetchPinnedThreads(page, version)
+    logger.debug(`Pinned threads: ${pinnedThreads.length}`)
 
     // First batch with retry logic
     const allThreads: RawThread[] = []
-    const firstBatch = await fetchFirstBatch(page, version)
-    allThreads.push(...firstBatch.threads)
+    let firstBatch: ThreadBatchResponse
 
-    if (firstBatch.threads.length === 0) {
-      logger.success(`Discovered 0 threads`)
-      return []
+    try {
+      firstBatch = await fetchFirstBatch(page, version)
+    } catch (err) {
+      if (pinnedThreads.length > 0) {
+        // Pinned-only library — not an error
+        logger.info('No regular threads found; returning pinned threads only')
+        const conversations = pinnedThreads.map(rawThreadToConversationMeta)
+        logger.success(`Discovered ${conversations.length} threads`)
+        return conversations
+      }
+      throw err
     }
+
+    allThreads.push(...firstBatch.threads)
 
     logger.debug(`Total threads on server: ${firstBatch.total}`)
 
@@ -259,10 +314,21 @@ export class LibraryDiscovery {
       offset += batch.threads.length
       hasMore = batch.hasMore
 
-      logger.debug(`Fetched ${allThreads.length} / ${batch.total} threads`)
+      logger.debug(`Fetched ${allThreads.length} threads`)
     }
 
-    const conversations = allThreads.map(rawThreadToConversationMeta)
+    // Merge pinned + regular, deduplicate by uuid
+    const seen = new Set<string>()
+    const merged: RawThread[] = []
+
+    for (const thread of [...pinnedThreads, ...allThreads]) {
+      if (!seen.has(thread.uuid)) {
+        seen.add(thread.uuid)
+        merged.push(thread)
+      }
+    }
+
+    const conversations = merged.map(rawThreadToConversationMeta)
     logger.success(`Discovered ${conversations.length} threads`)
     return conversations
   }
