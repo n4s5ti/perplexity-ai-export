@@ -1,6 +1,6 @@
 import { config as loadEnv } from 'dotenv'
 import { existsSync, mkdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join, dirname } from 'node:path'
 import { z } from 'zod'
 import { logger } from './logger.js'
 
@@ -24,6 +24,10 @@ const configSchema = z.object({
     .transform((val) => val === 'true'),
   headless: z.union([z.boolean(), z.literal('new')]),
   debug: z.boolean(),
+  exportStrategies: z
+    .string()
+    .optional()
+    .transform((val) => (val ? val.split(',').map((s) => s.trim()) : ['markdown'])),
 })
 
 export type Config = z.infer<typeof configSchema>
@@ -61,6 +65,7 @@ function parseEnvConfig(): Config {
     enableVectorSearch: process.env['ENABLE_VECTOR_SEARCH'],
     headless: headless,
     debug: process.env['DEBUG'] === 'true',
+    exportStrategies: process.env['EXPORT_STRATEGIES'],
   }
 
   const result = configSchema.safeParse(rawConfig)
