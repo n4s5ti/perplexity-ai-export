@@ -9,3 +9,5 @@ coverage/
 .aider*
 *.old
 exports*
+debug/
+logs/*.txt
