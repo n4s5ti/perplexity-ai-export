@@ -4,8 +4,9 @@ import { z } from 'zod'
 import { type Page, type BrowserContext, type Response } from '@playwright/test'
 import { logger } from '../utils/logger.js'
 import { waitStrategy } from '../utils/wait-strategy.js'
-import { ApiDiagnosticsWriter } from '../utils/api-diagnostics.js'
 import { type Config } from '../utils/config.js'
+import { ApiDiagnosticsWriter } from '../utils/api-diagnostics.js'
+import { DEFAULT_API_VERSION } from './api-version.js'
 
 export interface ConversationMessage {
   role: 'user' | 'assistant'
@@ -44,11 +45,24 @@ export class ConversationExtractor {
     blocks: z.array(ConversationExtractor.BlockSchema).optional(),
   })
 
+  /**
+   * Validates the top-level shape of the `/rest/thread/{id}` HTTP response,
+   * confirmed against a live 2026 response. The endpoint returns either a bare
+   * array of entries or an object wrapping them; pagination is signalled by the
+   * top-level `has_next_page` / `next_cursor` pair. Fields are optional and the
+   * object is non-strict, so unknown/new keys don't reject an otherwise-valid
+   * response — shape drift is surfaced via diagnostics, and `EntrySchema`
+   * remains the per-entry fallback downstream.
+   */
   private static readonly ApiResponseSchema = z.union([
     z.array(ConversationExtractor.EntrySchema),
     z.object({
       entries: z.array(ConversationExtractor.EntrySchema),
       background_entries: z.array(z.unknown()).optional(),
+      has_next_page: z.boolean().optional(),
+      next_cursor: z.string().nullable().optional(),
+      status: z.string().optional(),
+      thread_metadata: z.unknown().optional(),
       collection_info: z
         .object({
           has_next_page: z.boolean().optional(),
@@ -190,6 +204,7 @@ export class ConversationExtractor {
   private captureConversationApiResponse(page: Page): Promise<unknown> {
     const accumulatedEntries: unknown[] = []
     let isRequestResolved = false
+    const expectedVersionToken = `version=${encodeURIComponent(DEFAULT_API_VERSION)}`
 
     return new Promise((resolve) => {
       const timeoutId = setTimeout(() => {
@@ -220,6 +235,10 @@ export class ConversationExtractor {
         if (!isThreadApiRequest || isListRequest) return
         if (page.isClosed()) return
 
+        if (!responseUrl.includes(expectedVersionToken) && responseUrl.includes('version=')) {
+          logger.debug(`[extractor] thread response version drift: ${responseUrl}`)
+        }
+
         try {
           const jsonResponse = await response.json()
           if (isRequestResolved) return
@@ -239,8 +258,7 @@ export class ConversationExtractor {
             const currentEntries = Array.isArray(responseData) ? responseData : responseData.entries
             accumulatedEntries.push(...currentEntries)
 
-            const hasNextPage =
-              !Array.isArray(responseData) && responseData.collection_info?.has_next_page === true
+            const hasNextPage = !Array.isArray(responseData) && responseData.has_next_page === true
 
             if (!hasNextPage) {
               clearTimeout(timeoutId)
@@ -332,11 +350,8 @@ export class ConversationExtractor {
       const firstEntry = validatedEntries[0]!
       const conversationId = this.extractIdFromUrl(conversationUrl)
 
-      const threadTitleFromData = (apiData as any)?.thread_title
-      const collectionTitleFromData = (apiData as any)?.collection_info?.title
-
-      const title = firstEntry.thread_title ?? threadTitleFromData ?? 'Untitled'
-      const spaceName = firstEntry.collection_info?.title ?? collectionTitleFromData ?? 'General'
+      const title = firstEntry.thread_title ?? 'Untitled'
+      const spaceName = firstEntry.collection_info?.title ?? 'General'
       const timestamp = this.extractTimestamp(firstEntry, apiData)
       const contentHash = this.hashEntries(validatedEntries)
       const messages = this.parseMessages(validatedEntries, title)
@@ -369,8 +384,8 @@ export class ConversationExtractor {
     if (dataObject && Array.isArray(dataObject.entries)) return dataObject.entries as unknown[]
     if (dataObject && (dataObject.query_str || dataObject.blocks)) return [data]
 
+    logger.warn(`Unknown API response shape for ${url}`)
     this.diagnostics.writeFailure({ url, errorType: 'unknown_shape' }).catch(() => {})
-
     return []
   }
 

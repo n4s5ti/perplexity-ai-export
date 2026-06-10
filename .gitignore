@@ -4,10 +4,15 @@ dist/
 exports/
 coverage/
 
-.env
-*.log
-.aider*
-*.old
-exports*
+# debug
 debug/
 logs/*.txt
+*.log
+
+.env
+
+*.old
+exports*
+
+# AI
+.aider*
