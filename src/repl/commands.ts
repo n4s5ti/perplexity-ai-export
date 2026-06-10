@@ -2,7 +2,7 @@ import { type Page } from '@playwright/test'
 import { errorBus } from '../utils/error-bus.js'
 import { input, select, confirm } from '@inquirer/prompts'
 import { rmSync } from 'node:fs'
-import { sep } from 'node:path'
+import { sep, dirname, resolve } from 'node:path'
 import { BrowserManager } from '../scraper/browser.js'
 import { CheckpointManager } from '../scraper/checkpoint-manager.js'
 import { WorkerPool } from '../scraper/worker-pool.js'
@@ -298,11 +298,12 @@ export class CommandHandler {
 
   private wipeStorageDirectory(): void {
     const authStoragePath = this.config.authStoragePath
-    const storageRootDir = authStoragePath ? authStoragePath.split(sep)[0] : '.storage'
+
+    const resolvedAuthPath = resolve(authStoragePath)
+    const storageRootDir = dirname(resolvedAuthPath)
 
     try {
-      const isDirectorySpecified = !!storageRootDir
-      if (isDirectorySpecified) {
+      if (storageRootDir) {
         rmSync(storageRootDir, { recursive: true, force: true })
         logger.debug(`Deleted storage folder: ${storageRootDir}`)
       }
