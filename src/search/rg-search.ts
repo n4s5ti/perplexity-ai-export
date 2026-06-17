@@ -5,7 +5,6 @@ import { type Config } from '../utils/config.js'
 import { logger } from '../utils/logger.js'
 import chalk from 'chalk'
 import { rgPath } from '@vscode/ripgrep'
-console.log('rgPath: ', rgPath)
 
 export interface RgSearchOptions {
   pattern: string
