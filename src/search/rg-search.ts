@@ -52,7 +52,7 @@ export class RgSearch {
 
     return new Promise((resolve, reject) => {
       const MAX_MATCHES_PER_QUERY = 100
-      const SEARCH_TIMEOUT_MS = 5000
+      const SEARCH_TIMEOUT_MS = 15000
       const matches: RgMatch[] = []
 
       const ripgrepProcess = spawn(rgPath, jsonOutputArguments, {
