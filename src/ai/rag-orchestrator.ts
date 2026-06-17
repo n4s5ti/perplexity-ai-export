@@ -233,7 +233,9 @@ Return JSON: {"strategy": "...", "queries": [], "hardKeywords": [], "hydePassage
     logger.info(`Cross-encoder reranking ${results.length} candidates...`)
 
     const RERANK_BATCH_SIZE = 64
-    const rerankScores: number[] = new Array(results.length).fill(0)
+    const rerankScores: number[] = (
+      Array.from({ length: results.length }) satisfies Array<number>
+    ).fill(0)
 
     for (let i = 0; i < results.length; i += RERANK_BATCH_SIZE) {
       const currentBatch = results.slice(i, i + RERANK_BATCH_SIZE)
