@@ -5,6 +5,7 @@ import { type Config } from '../utils/config.js'
 import { logger } from '../utils/logger.js'
 import chalk from 'chalk'
 import { rgPath } from '@vscode/ripgrep'
+console.log('rgPath: ', rgPath)
 
 export interface RgSearchOptions {
   pattern: string
@@ -52,10 +53,13 @@ export class RgSearch {
 
     return new Promise((resolve, reject) => {
       const MAX_MATCHES_PER_QUERY = 100
-      const SEARCH_TIMEOUT_MS = 30000
+      const SEARCH_TIMEOUT_MS = 5000
       const matches: RgMatch[] = []
 
-      const ripgrepProcess = spawn(rgPath, jsonOutputArguments, { cwd: this.config.exportDir })
+      const ripgrepProcess = spawn(rgPath, jsonOutputArguments, {
+        cwd: this.config.exportDir,
+        shell: true,
+      })
 
       const timeoutId = setTimeout(() => {
         const timeoutSeconds = SEARCH_TIMEOUT_MS / 1000
