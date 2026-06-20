@@ -129,8 +129,13 @@ Our architecture is informed by several key papers and concepts in the field of 
 
 ### Hypothetical Document Embeddings (HyDE)
 
-- **HyDE**: Rather than embedding the raw query, the LLM first generates a hypothetical document that would answer the query, then that document is embedded for retrieval. This closes the lexical gap between question phrasing and answer phrasing in the vector space.
-  - _Reference:_ [Gao et al., 2022. Precise Zero-Shot Dense Retrieval without Relevance Labels.](https://arxiv.org/abs/2212.10496)
+HyDE improves retrieval by generating a hypothetical answer to a query before embedding it, closing the lexical gap between questions and historical documents. Our implementation is highly configurable via `HYDE_MODE`:
+
+- **Off**: Standard semantic search only.
+- **Fusion**: (Traditional HyDE) Always generate a passage and fuse results using RRF.
+- **Supplement**: (Default) Perform initial semantic search first. Only trigger HyDE if results are weak (score < `HYDE_THRESHOLD_SCORE` or count < `HYDE_THRESHOLD_COUNT`). This maximizes accuracy while minimizing LLM latency.
+
+_Reference:_ [Gao et al., 2022. Precise Zero-Shot Dense Retrieval without Relevance Labels.](https://arxiv.org/abs/2212.10496)
 
 ### Cross-Encoder Reranking
 
@@ -205,7 +210,7 @@ Plain-language definitions for every technical term used in this document.
 | **Sparse Retrieval** | Search by exact keywords or strings (e.g. ripgrep). Perfect for finding specific names, IDs, or code snippets that embeddings might miss. |
 | **Hybrid Search** | Combining dense (meaning) and sparse (keyword) retrieval so you get the benefits of both. |
 | **RRF** (Reciprocal Rank Fusion) | A formula for merging ranked lists from multiple search methods into one combined ranking. It rewards results that appear near the top in multiple lists, without needing to normalize scores. |
-| **HyDE** (Hypothetical Document Embeddings) | Before searching, ask the LLM: "What would a good answer to this question look like?" Then search using *that* hypothetical answer instead of the raw question. Helps when your question phrasing doesn't match how the answer was originally written. |
+| **HyDE** (Hypothetical Document Embeddings) | Before searching, ask the LLM: "What would a good answer to this question look like?" Then search using *that* hypothetical answer instead of the raw question. Helps when your question phrasing doesn't match how the answer was originally written. Configurable via `HYDE_MODE` (off, fusion, supplement). |
 | **MapReduce** | A two-step processing pattern: **Map** = process many small chunks independently in parallel; **Reduce** = combine all those results into one final output. Used here to extract facts from many snippets without overloading the LLM's context window. |
 | **Context Window** | The maximum amount of text an LLM can read and reason about at once. Stuffing too many search results in at once causes the model to "lose" information in the middle; we use MapReduce to mitigate this. |
 | **Lost in the Middle** | A known LLM failure mode: when given a very long input, the model tends to remember the start and end well but forgets details buried in the middle. MapReduce mitigates this by processing small chunks. |

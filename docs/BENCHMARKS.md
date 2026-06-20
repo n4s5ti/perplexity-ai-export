@@ -26,7 +26,7 @@ This document describes how the benchmark system works, which metrics it capture
 
 ## 1. Overview
 
-The benchmark system is a **latency and reliability stress test** for the full RAG pipeline. It fires a set of realistic queries end-to-end (through HyDE generation, hybrid search, cross-encoder reranking, MapReduce fact extraction, and final synthesis) and reports how long each stage takes and whether it completes without error.
+The benchmark system is a **latency and reliability stress test** for the full RAG pipeline. It fires a set of realistic queries end-to-end (through query refinement, optional HyDE expansion, hybrid search, cross-encoder reranking, MapReduce fact extraction, and final synthesis) and reports how long each stage takes and whether it completes without error.
 
 The goal is to give you a single command that answers: _"Is the pipeline fast and stable on my machine, with my data?"_
 
@@ -91,8 +91,10 @@ Together they cover the main failure modes: missed recall, entity blindness, pla
 The timer starts immediately before `orchestrator.answerQuestion(query)` is called and stops when it resolves. This captures the **full pipeline cost**:
 
 ```
-HyDE generation (LLM call)
-  → Hybrid search (vector + ripgrep)
+Query refinement (LLM call)
+  → Initial semantic search (vector)
+  → Optional HyDE generation (LLM call, if results are weak)
+  → Hybrid search fusion (vector + ripgrep)
   → RRF fusion
   → Cross-encoder reranking (ONNX inference)
   → MapReduce fact extraction (LLM batch calls)
