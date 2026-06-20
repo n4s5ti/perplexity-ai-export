@@ -24,7 +24,7 @@ const configSchema = z.object({
     .transform((val) => val === 'true'),
   headless: z.union([z.boolean(), z.literal('new')]),
   debug: z.boolean(),
-  hydeMode: z.enum(['off', 'fusion', 'supplement', 'auto']),
+  hydeMode: z.enum(['off', 'fusion', 'supplement']),
   hydeThresholdScore: z.number(),
   hydeThresholdCount: z.number().int().nonnegative(),
   exportStrategies: z

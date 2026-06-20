@@ -228,7 +228,7 @@ Return JSON: ${jsonTemplate}
       logger.debug(`Executing HyDE search (fusion): "${plan.hydePassage.slice(0, 60)}..."`)
       const hydeResults = await this.vectorStore.search(plan.hydePassage, 40)
       searchPools.push(hydeResults)
-    } else if (hydeMode === 'supplement' || hydeMode === 'auto') {
+    } else if (hydeMode === 'supplement') {
       const mergedSoFar = this.mergeAndFusionRank(searchPools)
       const maxScore = mergedSoFar.reduce((max, res) => Math.max(max, res.score), 0)
       const resultCount = mergedSoFar.length
