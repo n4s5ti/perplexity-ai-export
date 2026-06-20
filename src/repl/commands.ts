@@ -51,7 +51,6 @@ export class CommandHandler {
     }
   }
 
-
   private readonly checkpointManager: CheckpointManager
   private readonly searchOrchestrator: SearchOrchestrator
   private readonly ragOrchestrator: RagOrchestrator
@@ -61,7 +60,6 @@ export class CommandHandler {
     this.searchOrchestrator = new SearchOrchestrator(config)
     this.ragOrchestrator = new RagOrchestrator(config)
   }
-
 
   async handleStartLibraryExport(): Promise<void> {
     try {
@@ -303,7 +301,6 @@ export class CommandHandler {
     await this.searchOrchestrator.vectorizeNow()
   }
 
-
   async handleChatWizard(): Promise<void> {
     try {
       await this.searchOrchestrator.validateVectorSearch()
@@ -337,7 +334,9 @@ export class CommandHandler {
 
         console.log(`\n${chalk.bold.green('Assistant:')}\n`)
         console.log(response.content)
-        console.log(`\n${chalk.gray(`Tokens: ${response.usage.totalTokens} (${response.usage.promptTokens} prompt + ${response.usage.completionTokens} completion)`)}\n`)
+        console.log(
+          `\n${chalk.gray(`Tokens: ${response.usage.totalTokens} (${response.usage.promptTokens} prompt + ${response.usage.completionTokens} completion)`)}\n`
+        )
 
         history.push({ role: 'user', content: query })
         history.push({ role: 'assistant', content: response.content })

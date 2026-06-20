@@ -285,7 +285,10 @@ Return JSON: {"strategy": "...", "queries": [], "hardKeywords": [], "hydePassage
       return results
     }
 
-    const { tokenizer, model } = crossEncoder as { tokenizer: PreTrainedTokenizer; model: PreTrainedModel }
+    const { tokenizer, model } = crossEncoder as {
+      tokenizer: PreTrainedTokenizer
+      model: PreTrainedModel
+    }
     logger.info(`Cross-encoder reranking ${results.length} candidates...`)
 
     const RERANK_BATCH_SIZE = 64

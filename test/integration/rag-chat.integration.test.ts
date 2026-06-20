@@ -68,7 +68,9 @@ describe('RagOrchestrator Chat (MSW Mocked)', () => {
     vi.spyOn(RgSearch.prototype, 'captureSearchMatches').mockResolvedValue([])
 
     const ragOrchestratorInstance = new RagOrchestrator(config)
-    const response = await ragOrchestratorInstance.chat('Tell me more', [{ role: 'user', content: 'What is this?' }])
+    const response = await ragOrchestratorInstance.chat('Tell me more', [
+      { role: 'user', content: 'What is this?' },
+    ])
 
     expect(response.content).toBe('History-based chat response')
     expect(response.usage.totalTokens).toBe(150)
