@@ -6,7 +6,6 @@
   "author": "simwai",
   "packageManager": "pnpm@10.33.0",
   "main": "dist/src/index.js",
-  "bin": "dist/src/index.js",
   "engines": {
     "node": "^20.19.0"
   },
@@ -14,7 +13,6 @@
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "build": "tsc",
-    "build:exe": "node scripts/build-exe.js && pnpm run format",
     "release": "release-it",
     "toc": "node scripts/update-toc.js",
     "type-check": "tsc --noEmit",
