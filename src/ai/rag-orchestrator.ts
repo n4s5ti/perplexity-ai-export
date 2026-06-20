@@ -35,6 +35,7 @@ async function getCrossEncoder() {
 }
 
 interface ResearchPlan {
+  originalQuestion: string
   strategy: 'precise' | 'exhaustive'
   queries: string[]
   hardKeywords: string[]
@@ -171,19 +172,29 @@ INSTRUCTIONS:
   }
 
   private async developResearchPlan(originalQuestion: string): Promise<ResearchPlan> {
+    const isHydeInPlanner = this.config.hydeMode === 'fusion'
+    const hydeInstruction = isHydeInPlanner
+      ? '4. HyDE: Write 1-2 sentences that would plausibly appear in a saved answer to this question. Write as if it\'s content already stored, not as a reply.'
+      : ''
+
+    const jsonTemplate = isHydeInPlanner
+      ? '{"strategy": "...", "queries": [], "hardKeywords": [], "hydePassage": "...", "filters": {}}'
+      : '{"strategy": "...", "queries": [], "hardKeywords": [], "filters": {}}'
+
     const plannerPrompt = `
 Analyze: "${originalQuestion}"
 1. Strategy: "precise" (specific facts) or "exhaustive" (broad summary/entity history).
 2. Variations: 3 semantic search phrases.
 3. Hard Keywords: Identify any names, IDs, or unique technical terms for exact matching.
-4. HyDE: Write 1-2 sentences that would plausibly appear in a saved answer to this question. Write as if it's content already stored, not as a reply.
-Return JSON: {"strategy": "...", "queries": [], "hardKeywords": [], "hydePassage": "...", "filters": {}}
+${hydeInstruction}
+Return JSON: ${jsonTemplate}
 `
     try {
       const response = await this.ollamaClient.generate(plannerPrompt)
       const planJson = this.parseJsonFromResponse(response, {})
 
       return {
+        originalQuestion,
         strategy: planJson.strategy || 'precise',
         queries: planJson.queries || [originalQuestion],
         hardKeywords: planJson.hardKeywords || [],
@@ -193,6 +204,7 @@ Return JSON: {"strategy": "...", "queries": [], "hardKeywords": [], "hydePassage
     } catch (error) {
       return {
         strategy: 'precise',
+        originalQuestion,
         queries: [originalQuestion],
         hardKeywords: [],
         hydePassage: '',
@@ -203,6 +215,7 @@ Return JSON: {"strategy": "...", "queries": [], "hardKeywords": [], "hydePassage
 
   private async executeAdaptiveHybridSearch(plan: ResearchPlan): Promise<VectorSearchResult[]> {
     const searchPools: VectorSearchResult[][] = []
+    const hydeMode = this.config.hydeMode
 
     for (let i = 0; i < (plan.queries || []).length; i++) {
       const searchQuery = plan.queries[i]!
@@ -211,10 +224,30 @@ Return JSON: {"strategy": "...", "queries": [], "hardKeywords": [], "hydePassage
       searchPools.push(vectorResults)
     }
 
-    if (plan.hydePassage) {
-      logger.debug(`Executing HyDE search: "${plan.hydePassage.slice(0, 60)}..."`)
+    if (hydeMode === 'fusion' && plan.hydePassage) {
+      logger.debug(`Executing HyDE search (fusion): "${plan.hydePassage.slice(0, 60)}..."`)
       const hydeResults = await this.vectorStore.search(plan.hydePassage, 40)
       searchPools.push(hydeResults)
+    } else if (hydeMode === 'supplement') {
+      const mergedSoFar = this.mergeAndFusionRank(searchPools)
+      const maxScore = mergedSoFar.reduce((max, res) => Math.max(max, res.score), 0)
+      const resultCount = mergedSoFar.length
+
+      const isWeak =
+        maxScore < this.config.hydeThresholdScore || resultCount < this.config.hydeThresholdCount
+
+      if (isWeak) {
+        logger.info(
+          `Initial results weak (score: ${maxScore.toFixed(2)}, count: ${resultCount}). Triggering HyDE supplement...`
+        )
+        const hydePassage =
+          plan.hydePassage || (await this.generateHydePassage(plan.originalQuestion))
+        if (hydePassage) {
+          logger.debug(`Executing HyDE search (supplement): "${hydePassage.slice(0, 60)}..."`)
+          const hydeResults = await this.vectorStore.search(hydePassage, 40)
+          searchPools.push(hydeResults)
+        }
+      }
     }
 
     const keywordMatchPool: VectorSearchResult[] = []
@@ -386,6 +419,18 @@ Return JSON array: [{"fact": "...", "node_id": N, "thread": "..."}]
     }
 
     return extractedFindings
+  }
+
+  private async generateHydePassage(question: string): Promise<string> {
+    const hydePrompt = `
+Write 1-2 sentences that would plausibly appear in a saved answer to the question: "${question}"
+Write as if it's content already stored in a document, not as a direct reply.
+`
+    try {
+      return await this.ollamaClient.generate(hydePrompt)
+    } catch (error) {
+      return ''
+    }
   }
 
   private async generateMightiestResponse(

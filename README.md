@@ -45,7 +45,7 @@ This tool is designed to externalize your Perplexity.ai conversation history int
 - **Parallelized Extraction**: Leverages Playwright to extract multiple conversation threads simultaneously for high-velocity data retrieval.
 - **Architectural Resilience**: Automatically restores browser contexts and retries operations, ensuring continuity amidst environmental instability.
 - **Advanced RAG (Retrieval-Augmented Generation)**: Engage in a cognitive dialogue with your history. The system employs intent analysis to synthesize broad summaries or pinpoint specific technical insights.
-- **HyDE (Hypothetical Document Embeddings)**: Before searching, the planner generates a hypothetical answer passage and uses it as an additional search vector, improving recall when your question wording differs from how you originally wrote things.
+- **HyDE (Hypothetical Document Embeddings)**: An optional retrieval enhancement that generates a hypothetical answer to improve semantic matching. Highly configurable (off, fusion, or supplement modes) via environment variables to balance precision and recall.
 - **Cross-Encoder Reranking**: After initial retrieval, a local ONNX cross-encoder (`ms-marco-MiniLM-L-6-v2`) rescores the top candidates by jointly reasoning over query and passage, surfacing the most relevant results before synthesis.
 - **Semantic Vector Search**: Move beyond keyword matching. Locate information based on conceptual depth and semantic relevance.
 - **Persistent State Tracking**: Frequent checkpoints allow the system to resume progress after any interruption.
@@ -151,7 +151,7 @@ The RAG modality is engineered for various levels of cognitive inquiry:
 
 The pipeline runs three enhancement stages automatically:
 
-1. **HyDE**: The planner writes a hypothetical answer passage and uses it as an extra search vector alongside your query variations, improving recall when question wording diverges from stored content.
+1. **HyDE**: Depending on the `HYDE_MODE` (default: `supplement`), the system may generate a hypothetical answer passage to bridge the lexical gap between questions and historical content. In `supplement` mode, it only activates if initial semantic searches yield weak results.
 2. **Expanded pool**: Precise mode retrieves 35 candidates (up from 20), exhaustive mode retrieves 60.
 3. **Cross-encoder reranking**: A local ONNX model (`Xenova/ms-marco-MiniLM-L-6-v2`) jointly scores each (query, passage) pair and reorders before synthesis. Activates automatically after `pnpm install`. First run downloads ~85MB model, cached thereafter.
 

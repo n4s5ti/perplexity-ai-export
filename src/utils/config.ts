@@ -24,6 +24,9 @@ const configSchema = z.object({
     .transform((val) => val === 'true'),
   headless: z.union([z.boolean(), z.literal('new')]),
   debug: z.boolean(),
+  hydeMode: z.enum(['off', 'fusion', 'supplement']),
+  hydeThresholdScore: z.number(),
+  hydeThresholdCount: z.number().int().nonnegative(),
   exportStrategies: z
     .string()
     .optional()
@@ -65,6 +68,9 @@ function parseEnvConfig(): Config {
     enableVectorSearch: process.env['ENABLE_VECTOR_SEARCH'],
     headless: headless,
     debug: process.env['DEBUG'] === 'true',
+    hydeMode: (process.env['HYDE_MODE'] || 'supplement') as any,
+    hydeThresholdScore: parseFloat(process.env['HYDE_THRESHOLD_SCORE'] || '0.7'),
+    hydeThresholdCount: parseInt(process.env['HYDE_THRESHOLD_COUNT'] || '5', 10),
     exportStrategies: process.env['EXPORT_STRATEGIES'],
   }
 
