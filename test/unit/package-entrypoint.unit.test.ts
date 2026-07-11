@@ -9,6 +9,7 @@ const packageJson = JSON.parse(readFileSync(resolve(packageRoot, 'package.json')
   bin?: Record<string, string>
   main?: string
   dependencies?: Record<string, string>
+  scripts?: Record<string, string>
 }
 
 describe('package entrypoint', () => {
@@ -36,5 +37,11 @@ describe('package entrypoint', () => {
     expect(dependencies).not.toHaveProperty('@huggingface/transformers')
     expect(dependencies).not.toHaveProperty('vectra')
     expect(dependencies).not.toHaveProperty('@vscode/ripgrep')
+  })
+
+  it('does not run a Git-install prepare lifecycle that would install optional dev dependencies', () => {
+    const scripts = packageJson.scripts ?? {}
+
+    expect(scripts).not.toHaveProperty('prepare')
   })
 })
