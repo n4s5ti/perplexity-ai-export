@@ -7,8 +7,10 @@ import { describe, expect, it } from 'vitest'
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const packageJson = JSON.parse(readFileSync(resolve(packageRoot, 'package.json'), 'utf8')) as {
   bin?: Record<string, string>
+  version?: string
   main?: string
   dependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
   scripts?: Record<string, string>
 }
 
@@ -27,6 +29,20 @@ describe('package entrypoint', () => {
     ).toBe('bin/perplexity-history-export.mjs')
   })
 
+  it('reports the runtime that executes the wrapper through a standard version probe', () => {
+    const wrapper = resolve(packageRoot, packageJson.bin?.['perplexity-history-export'] ?? '')
+
+    const output = execFileSync(process.execPath, [wrapper, '--version'], {
+      cwd: packageRoot,
+      encoding: 'utf8',
+      timeout: 3000,
+    }).trim()
+
+    expect(output).toBe(
+      `perplexity-history-export ${packageJson.version} (Node ${process.version})`
+    )
+  })
+
   it('ships exporter runtime dependencies without optional ML or native downloader packages', () => {
     const dependencies = packageJson.dependencies ?? {}
 
@@ -37,6 +53,14 @@ describe('package entrypoint', () => {
     expect(dependencies).not.toHaveProperty('@huggingface/transformers')
     expect(dependencies).not.toHaveProperty('vectra')
     expect(dependencies).not.toHaveProperty('@vscode/ripgrep')
+  })
+
+  it('does not install optional ML or native downloader packages when npm builds a Git package', () => {
+    const devDependencies = packageJson.devDependencies ?? {}
+
+    expect(devDependencies).not.toHaveProperty('@huggingface/transformers')
+    expect(devDependencies).not.toHaveProperty('vectra')
+    expect(devDependencies).not.toHaveProperty('@vscode/ripgrep')
   })
 
   it('does not run a Git-install prepare lifecycle that would install optional dev dependencies', () => {
