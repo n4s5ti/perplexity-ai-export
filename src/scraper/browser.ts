@@ -4,6 +4,7 @@ import { type Config } from '../utils/config.js'
 import { logger } from '../utils/logger.js'
 import { confirm } from '@inquirer/prompts'
 import { logHttpRequest, logHttpResponse } from '../utils/http-logger.js'
+import { ensureChromiumInstalled } from './browser-bootstrap.js'
 
 export class BrowserManager {
   static readonly BrowserLaunchError = class extends Error {
@@ -42,6 +43,8 @@ export class BrowserManager {
 
   async launch(): Promise<Page> {
     try {
+      ensureChromiumInstalled()
+
       const authPath = this.config.authStoragePath
       const authExists = existsSync(authPath)
       const isFresh = authExists && this.isSavedAuthenticationFresh(authPath)

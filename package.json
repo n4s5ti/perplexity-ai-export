@@ -5,6 +5,13 @@
   "type": "module",
   "author": "simwai",
   "packageManager": "pnpm@10.33.0",
+  "bin": {
+    "perplexity-history-export": "./bin/perplexity-history-export.mjs"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
   "scripts": {
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
@@ -30,19 +37,20 @@
     "@huggingface/transformers": "~3.5.0",
     "@inquirer/prompts": "^8.5.0",
     "@vscode/ripgrep": "^1.17.1",
+    "@playwright/test": "^1.58.2",
     "chalk": "^5.6.2",
     "chromium-bidi": "^15.0.0",
     "dotenv": "^17.2.4",
     "inquirer": "^13.2.2",
     "playwright-core": "^1.58.2",
     "sanitize-filename": "^1.6.3",
+    "tsx": "^4.21.0",
     "vectra": "^0.12.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.4",
     "@commitlint/config-conventional": "^20.4.4",
-    "@playwright/test": "^1.58.2",
     "@release-it/conventional-changelog": "^10.0.6",
     "@types/inquirer": "^9.0.9",
     "@types/node": "^25.2.3",
@@ -60,7 +68,6 @@
     "oxlint": "^1.47.0",
     "postject": "^1.0.0-alpha.6",
     "release-it": "^19.2.4",
-    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
