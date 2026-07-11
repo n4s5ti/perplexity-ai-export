@@ -8,6 +8,7 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const packageJson = JSON.parse(readFileSync(resolve(packageRoot, 'package.json'), 'utf8')) as {
   bin?: Record<string, string>
   main?: string
+  dependencies?: Record<string, string>
 }
 
 describe('package entrypoint', () => {
@@ -23,5 +24,17 @@ describe('package entrypoint', () => {
         encoding: 'utf8',
       }).trim()
     ).toBe('bin/perplexity-history-export.mjs')
+  })
+
+  it('ships exporter runtime dependencies without optional ML or native downloader packages', () => {
+    const dependencies = packageJson.dependencies ?? {}
+
+    expect(dependencies).toMatchObject({
+      tsx: expect.any(String),
+      '@playwright/test': expect.any(String),
+    })
+    expect(dependencies).not.toHaveProperty('@huggingface/transformers')
+    expect(dependencies).not.toHaveProperty('vectra')
+    expect(dependencies).not.toHaveProperty('@vscode/ripgrep')
   })
 })
