@@ -1,6 +1,15 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
@@ -41,6 +50,32 @@ describe('package entrypoint', () => {
     expect(output).toBe(
       `perplexity-history-export ${packageJson.version} (Node ${process.version})`
     )
+  })
+
+  it('finds tsx when npm hoists it beside the installed Git package', () => {
+    const fakeInstallRoot = mkdtempSync(join(tmpdir(), 'perplexity-history-export-hoisted-'))
+    const fakeNodeModules = join(fakeInstallRoot, 'node_modules')
+    const fakePackageRoot = join(fakeNodeModules, 'perplexity-history-export')
+    const fakeWrapper = join(fakePackageRoot, 'bin/perplexity-history-export.mjs')
+
+    try {
+      mkdirSync(dirname(fakeWrapper), { recursive: true })
+      cpSync(resolve(packageRoot, 'bin/perplexity-history-export.mjs'), fakeWrapper)
+      symlinkSync(resolve(packageRoot, 'src'), join(fakePackageRoot, 'src'), 'dir')
+      symlinkSync(resolve(packageRoot, 'node_modules/tsx'), join(fakeNodeModules, 'tsx'), 'dir')
+
+      const output = execFileSync(process.execPath, [fakeWrapper], {
+        cwd: fakeInstallRoot,
+        encoding: 'utf8',
+        env: { ...process.env, ENABLE_VECTOR_SEARCH: 'false' },
+        input: '\u0003',
+        timeout: 3000,
+      })
+
+      expect(output).toContain('Perplexity History Export Tool')
+    } finally {
+      rmSync(fakeInstallRoot, { force: true, recursive: true })
+    }
   })
 
   it('ships exporter runtime dependencies without optional ML or native downloader packages', () => {

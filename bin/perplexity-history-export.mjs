@@ -2,6 +2,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -13,7 +14,7 @@ if (isVersionProbe) {
   const { version } = JSON.parse(readFileSync(resolve(packageRoot, 'package.json'), 'utf8'))
   console.log(`perplexity-history-export ${version} (Node ${process.version})`)
 } else {
-  const tsxCli = resolve(packageRoot, 'node_modules/tsx/dist/cli.mjs')
+  const tsxCli = createRequire(import.meta.url).resolve('tsx/cli')
   const entrypoint = resolve(packageRoot, 'src/index.ts')
   const child = spawnSync(process.execPath, [tsxCli, entrypoint, ...args], {
     stdio: 'inherit',
